@@ -1,5 +1,7 @@
 # Premiere Unicode Auto Relink
 
+公开仓库：[github.com/TeamHechao/premiere-unicode-auto-relink](https://github.com/TeamHechao/premiere-unicode-auto-relink)
+
 Premiere Pro can keep a Mac path such as `/Volumes/Media/...` and a filename
 written in decomposed Unicode (NFD). A Windows copy of the same post-production
 package may display the same Japanese text while storing the filename in
