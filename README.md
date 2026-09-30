@@ -1,93 +1,47 @@
 # Premiere Unicode Auto Relink
 
-公开仓库：[github.com/TeamHechao/premiere-unicode-auto-relink](https://github.com/TeamHechao/premiere-unicode-auto-relink)
+解决 Premiere 在 Mac 与 Windows 交接时的素材失联，尤其是日文文件名的
+NFC/NFD 编码不同、看起来相同但无法逐字匹配的情况。
 
-Premiere Pro can keep a Mac path such as `/Volumes/Media/...` and a filename
-written in decomposed Unicode (NFD). A Windows copy of the same post-production
-package may display the same Japanese text while storing the filename in
-composed Unicode (NFC). A byte-for-byte lookup then reports the media offline.
+## 日常使用
 
-This repository provides two conservative tools:
+1. 关闭 Premiere，运行安装脚本：
 
-- `auto-link/` is a Premiere UXP panel. Set the local media library once; while
-  the panel is visible it compares each path component in NFC without renaming,
-  copying, moving, or transcoding media. Only one unambiguous offline audio
-  match is changed. New BGM files are found on the next scan automatically.
-- `relink_media.py` is an offline `.prproj` copy tool for projects that cannot be
-  opened in Premiere yet. It creates a backup, writes a new project, and leaves
-  ambiguous or missing files unresolved.
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\auto-link\install-user-plugin.ps1
+   ```
 
-The repository contains source code and synthetic tests only. It does not contain
-the original project, media, private drive paths, or generated repair output.
+2. 打开 Premiere，在 `窗口 > UXP 插件 > 素材自动补链` 打开面板。
 
-## UXP panel
+3. 第一次点击 **选择素材库并启用**，选后期包根目录即可。插件会保存设置、
+   开启检查并立即扫描一次；以后只要面板可见，就会自动检查。
 
-Requirements: Premiere Pro 25.6 or newer, UXP manifest version 5, and a saved
-`.prproj` project. The panel asks for full local file access because it must read
-the user-selected media root and write a backup beside its plugin data. It never
-starts Premiere or opens a project on its own.
+常用操作只有三个：**打开工程并检查**、**立即检查**、**暂停自动检查**。
+补链后检查结果，由用户确认并保存工程。素材名不会被改动，新下载的 BGM 会在
+下一次检查时自动发现。旧素材库改过目录名时，再到 **高级设置** 每行填一个旧名。
 
-1. Close Premiere Pro.
-2. Run `auto-link/install-user-plugin.ps1` from PowerShell.
-3. Start Premiere, open `Window > UXP Plugins > 素材自动补链`, and choose the
-   actual post-production package folder.
-4. Add any old package directory names in the settings area when the package was
-   renamed. Keep automatic checking disabled until the root is correct.
-5. For the most predictable first test, use the panel's `打开工程并补链` button.
-   Ordinary double-click opening may show Premiere's locate dialog before a panel
-   can run; this repository does not claim to intercept that path.
-6. Review the report and save the project yourself after checking the media.
+插件只处理已保存工程，并在第一次修改前建立备份。候选不唯一、素材缺失、工程清单
+不完整或事务未核对时会停下，不会按文件名或时间戳猜测。
 
-The plugin stores configuration, backups, journals, and runtime reports in its
-UXP data folder, not in the source checkout. A prepared transaction pauses future
-automatic work until it is acknowledged in the panel. The host API call is
-non-undoable, so the plugin backs up the saved project and rechecks the project,
-clip, and candidate file immediately before the call.
+## 不能打开 Premiere 时
 
-## Offline copy tool
-
-The Python tool uses only the standard library. Copy the example config and edit
-the roots, or pass a root directly:
+使用离线副本工具，必须显式指定真实素材库：
 
 ```powershell
-py -3 relink_media.py --media-root 'D:\Media\PostPackage' 'D:\Projects\episode.prproj'
+py -3 .\relink_media.py --media-root 'D:\Media\PostPackage' 'D:\Edit\episode.prproj'
 ```
 
-For a dry run:
+它不覆盖输入工程，会输出原工程备份、修复副本和报告。
+
+## 验证
 
 ```powershell
-py -3 relink_media.py --dry-run --config .\素材位置.json 'D:\Projects\episode.prproj'
-```
-
-Each normal run writes a timestamped directory under `outputs/` containing the
-original bytes, a repaired copy when there are changes, a JSON report, and a
-Chinese text report. The input project and media names are not changed.
-
-## Tests
-
-```powershell
-node --test auto-link/tests/*.test.cjs
-node --check auto-link/plugin/core.js
-node --check auto-link/plugin/host.js
-node --check auto-link/plugin/store.js
-node --check auto-link/plugin/main.js
+npm --prefix auto-link test
 python -m unittest discover -v
+node --check auto-link/plugin/main.js
 ```
 
-Tests cover NFC/NFD path matching, new files, path traversal, duplicate
-candidates, links, file replacement, project/reference changes during logging,
-transaction journals, failed host readback, gzip projects, backups, and repeat
-runs.
+详细设计、限制和排障：[`docs/architecture.md`](docs/architecture.md)、
+[`docs/limitations.md`](docs/limitations.md)、[`docs/troubleshooting.md`](docs/troubleshooting.md)。
 
-## Known limits
-
-The panel only handles saved projects and audio extensions listed in the source.
-It stops on incomplete Premiere inventory, proxies, merged clips, multicam clips,
-non-unique candidates, inaccessible roots, and unfinished transactions. It does
-not modify filenames and cannot recreate missing media. Premiere's actual host
-load, playback, and save behavior must still be checked by the editor; no such
-full application acceptance is claimed by the automated tests.
-
-See [`docs/architecture.md`](docs/architecture.md),
-[`docs/limitations.md`](docs/limitations.md), and
-[`docs/troubleshooting.md`](docs/troubleshooting.md) for details.
+仓库只含源码和合成测试，不含真实工程、素材或本机配置。

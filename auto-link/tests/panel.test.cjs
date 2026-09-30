@@ -57,17 +57,18 @@ async function load(f, hooks = {}) {
   return {node, panel};
 }
 
-test('first run is disabled; manual scan backs up, journals and does not save the project', async t => {
+test('first library choice enables checking and scans once without saving the project', async t => {
   const f = await fixture(t), ui = await load(f);
   assert.equal(f.clip.calls.length, 0);
   await ui.node('choose').click();
-  assert.equal(f.clip.calls.length, 0);
+  assert.equal(f.clip.calls.length, 1);
+  assert.equal((await Store.create(fs, f.data).initialize()).enabled, true);
   await ui.node('scan').click();
   assert.equal(f.clip.calls.length, 1);
   assert.equal(f.clip.calls[0].override, false);
   assert.equal((await fs.readdir(path.join(f.data, 'backups'))).length, 1);
   assert.equal((await Store.create(fs, f.data).pending()).length, 0);
-  assert.match(ui.node('status').textContent, /已补链 1/);
+  assert.match(ui.node('status').textContent, /素材链接正常/);
   assert.equal(await fs.readFile(f.project.path, 'utf8'), 'synthetic saved project');
 });
 

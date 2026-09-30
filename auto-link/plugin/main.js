@@ -7,8 +7,13 @@
   function el(id) { return document.getElementById(id); }
   function status(text) { el('status').textContent = text; }
   function render() {
+    var hasRoots = !!(config && config.roots.length);
+    el('choose').textContent = hasRoots ? '更换素材库' : '选择素材库并启用';
+    el('toggle').hidden = !hasRoots;
     el('toggle').textContent = config && config.enabled ? '暂停自动检查' : '启用自动检查';
-    el('roots').textContent = config ? config.roots.map(function (root) { return root.path; }).join('\n') : '';
+    el('open').disabled = !hasRoots;
+    el('scan').disabled = !hasRoots;
+    el('roots').textContent = hasRoots ? config.roots.map(function (root) { return root.path; }).join('\n') : '尚未选择素材库';
     el('data').textContent = store ? store.root : '';
     el('acknowledge').hidden = !unfinished.length;
   }
@@ -103,11 +108,11 @@
     } finally { busy = false; }
     if (opened && visible && gen === generation) await scan(true);
   }
-  async function saveRoots(path) {
+  async function saveRoots(path, enabled) {
     var names = el('aliases').value.split(/\r?\n/).map(function (name) { return name.trim(); }).filter(Boolean);
     var roots = Core.validateRoots([{path: path, names: [Core.base(path)].concat(names)}]);
     if (!await Core.plainDirectory(fs, roots[0].path)) throw new Error('素材库必须是可访问的普通文件夹');
-    config = {schemaVersion: 1, enabled: false, roots: roots};
+    config = {schemaVersion: 1, enabled: !!enabled, roots: roots};
     generation++;
     await store.saveConfig(config);
     displayAliases(); render(); status('素材库已设置');
@@ -116,10 +121,17 @@
     if (busy || !config) return;
     busy = true;
     var gen = generation;
+    var firstRun = !config.roots.length, shouldScan = false;
     try {
       var folder = await uxp.storage.localFileSystem.getFolder();
-      if (folder && visible && generation === gen) await saveRoots(Core.native(folder.nativePath));
+      if (folder && visible && generation === gen) {
+        await saveRoots(Core.native(folder.nativePath), firstRun ? true : config.enabled);
+        shouldScan = !!config.enabled;
+        status(firstRun ? '素材库已设置，正在检查…' : shouldScan ? '素材库已更新，正在检查…' : '素材库已更新');
+      }
     } finally { busy = false; }
+    if (shouldScan && visible) await scan(true);
+    schedule();
   }
   function handle(fn) {
     return async function () {
@@ -135,11 +147,11 @@
       el('save-aliases').addEventListener('click', handle(async function () {
         if (busy || !config || !config.roots.length) return;
         busy = true;
-        try { await saveRoots(config.roots[0].path); } finally { busy = false; }
+        try { await saveRoots(config.roots[0].path, config.enabled); } finally { busy = false; }
       }));
       el('scan').addEventListener('click', handle(function () { return scan(true); }));
       el('toggle').addEventListener('click', handle(async function () {
-        if (!config || (busy && !config.enabled)) return;
+        if (!config || busy || !config.roots.length) return;
         if (config.enabled) {
           config.enabled = false; generation++;
           await store.saveConfig(config); render(); status('自动检查已暂停');
@@ -171,7 +183,7 @@
       displayAliases();
     }
     render();
-    status(unfinished.length ? '上次补链未完成，需核对' : config.enabled ? '自动检查已启用' : '自动检查已暂停');
+    status(unfinished.length ? '需要核对上次补链' : !config.roots.length ? '先选择一次素材库' : config.enabled ? '自动检查已开启' : '自动检查已暂停');
     schedule();
   }
   uxp.entrypoints.setup({panels: {unicodeLink: {
