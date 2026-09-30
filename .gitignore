@@ -1,0 +1,52 @@
+# Local project material and generated repair output
+backup/
+outputs/
+work/
+assets/
+*.prproj
+*.prproj.bak
+*.pek
+*.cfa
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.aif
+*.aiff
+*.flac
+*.ogg
+*.mp4
+*.mov
+*.mkv
+*.mxf
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+
+# Machine-specific configuration, UXP state, fixtures, and installation records
+素材位置.json
+修复核验.json
+自动化离线核验.json
+auto-link/config.json
+auto-link/fixture.json
+auto-link/install-record.json
+auto-link/backups/
+auto-link/journals/
+auto-link/runtime/
+auto-link/host-test/
+auto-link/work/
+
+# Private one-off conversion helpers
+repair_project.py
+work/convert_prison_*.py
+
+# Python and editor caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.idea/
+.vscode/
